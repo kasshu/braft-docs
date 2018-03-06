@@ -32,7 +32,7 @@
 
 Braft的类图如下：（忽略了很多小的数据结构）
 
-![braft class diagram](../images/braft class diagram.PNG)
+![braft class diagram](../images/braft_class_diagram.PNG)
 
 主要的类功能简要介绍如下：
 
@@ -71,7 +71,7 @@ Braft的类图如下：（忽略了很多小的数据结构）
 
 Braft支持在一台机器上启动多个raft node（多个node不同endpoint，以及多个node共享一个endpoint），并把这些raft node按照GroupId和PeerId分类，再使用NodeManager统一管理。
 
-![braft node manager](../images/braft node manager.PNG)
+![braft node manager](../images/braft_node_manager.PNG)
 
 当RaftService收到RPC请求时，会根据请求中的GroupId和PeerId，将Request转发给指定的NodeImpl。
 
@@ -81,11 +81,11 @@ Braft支持在一台机器上启动多个raft node（多个node不同endpoint，
 
 ConfigurationManager是用来管理Configuration变更的类。在Braft中，复制组Configuration的变更通过Raft Log完成，ConfigurationManager建立LogId到Configuration的映射来跟踪记录这些变更。
 
-![braft configuration manager](../images/braft configuration manager.PNG)
+![braft configuration manager](../images/braft_configuration_manager.PNG)
 
 也可以认为ConfigurationManager把Raft Log中的所有Configuration Log Entry全部单独抽出来管理，当LogManager truncate时它也跟着truncate；当做Snapshot时，也要把Snapshot的last logid对应的Configuration提取出来写到SnapshotMeta中。
 
-![braft configuration snapshot](../images/braft configuration snapshot.PNG)
+![braft configuration snapshot](../images/braft_configuration_snapshot.PNG)
 
 为了防止重启时config log的丢失（已做snapshot后被truncate掉），所以在做snapshot时需要把当时的Configuration加入snapshot的meta中，而ConfigurationManager的snapshot就是对应这个做了snapshot的Configuration的内存中的暂存。
 
@@ -97,7 +97,7 @@ ConfigurationManager是用来管理Configuration变更的类。在Braft中，复
 
 Ballot记录了一次投票信息，而BallotBox是它的管理类。
 
-![braft ballot box](../images/braft ballot box.PNG)
+![braft ballot box](../images/braft_ballot_box.PNG)
 
 Leader在向LogManager写入raft log之前，会调用append_pending_task在BallotBox中注册一个Ballot，在写成功之后会调用commit_at提交一次本地的投票。Replicator在分发成功之后，同样调用commit_at提交一次对应peer的投票。commit_at方法通过调用grant修改Ballot之中的信息，随后还使用granted检查投票是否通过。如果通过则修改last_commited_id，再调用FSMCaller的on_commit方法通知用户状态机。
 
@@ -112,7 +112,7 @@ Leader在向LogManager写入raft log之前，会调用append_pending_task在Ball
 
 按照论文，MetaStorage中保存了node的vote_for和term信息，使用ProtoBuf序列化之后保存到指定的位置。当NodeImpl初始化时会读取这个文件并反序列化获取vote_for和term。vote_for和term只要有一项改动就立即写文件。
 
-![braft meta](../images/braft meta.PNG)
+![braft meta](../images/braft_meta.PNG)
 
 > SDCP还需要在vote_for和term的基础之上加入last_applied_id。
 
@@ -122,7 +122,7 @@ Leader在向LogManager写入raft log之前，会调用append_pending_task在Ball
 
 首先看看raft log的文件存储设计：
 
-![braft log file](../images/braft log file.PNG)
+![braft log file](../images/braft_log_file.PNG)
 
 Braft的raft log都存储在用户指定的目录下，已经不再写入的log file命名规则是`log_$first_idx_$last_idx`，当前正在写入的log file命名规则是`log_inprogress_$first_idx`，其中first_idx和last_idx分别是log file中第一条raft log的index和最后一条的index。Log file完全由一条一条的log entry组成，既没有额外的footer和index，也没有做4k对齐，还没有使用magic number进行隔离。
 
@@ -146,7 +146,7 @@ Log entry由header和data两部分组成。header大小为24bytes：
 
 #### 4.4.2 RaftLog的处理逻辑设计 
 
-![braft log storage](../images/braft log storage.PNG)
+![braft log storage](../images/braft_log_storage.PNG)
 
 一个Segment对象对应一个log file，Segment在启动时load它所持有的file，在内存中建立offset到term的映射（index可以直接由first_index + 下标计算得出）以备查询。
 
@@ -160,7 +160,7 @@ LogManager是更高一层的抽象。在管理SegmentLogStorage的同时，还�
 
 先上一张整体类图：
 
-![braft snapshot](../images/braft snapshot.PNG)
+![braft snapshot](../images/braft_snapshot.PNG)
 
 #### 4.5.1 Snapshot的文件构成
 
@@ -190,7 +190,7 @@ Snapshot save既可以由用户状态机自行发起，也可以由snapshot_time
 
 ### 4.6. Replicator
 
-![braft replicator](../images/braft replicator.PNG)
+![braft replicator](../images/braft_replicator.PNG)
 
 Replicator是负责raft log日志复制的类，一个replicator对应一个peer，通过RPC与对应peer的RaftService通信。Replicator运行在单独的线程当中，当用户状态机apply日志到LogManager的同时，会notify所有的replicator，replicator会从LogManager的logs_in_memory中读取最新的日志然后复制分发。如果在日志分发时，发现对端的next_index不在LogManager中，replicator执行install_snapshot流程。NodeImpl在add_peer时，调用wait_caught_up来等待对端的日志追上进度。ReplicatorGroup是replicator的管理类，负责replicator的创建销毁、启动停止等工作。
 
@@ -219,41 +219,41 @@ Braft的启动流程除了初始化各种对象之外，还做了以下处理：
 
 #### 5.1.1 Leader端
 
-![braft leader apply](../images/braft leader apply.png)
+![braft leader apply](../images/braft_leader_apply.png)
 
 #### 5.1.2. Follower端
 
-![braft follower apply](../images/braft follower apply.png)
+![braft follower apply](../images/braft_follower_apply.png)
 
 ### 5.2. 日志复制流程
 
-![braft log replicate](../images/braft log replicate.png)
+![braft log replicate](../images/braft_log_replicate.png)
 
 ### 5.3. Heartbeat流程
 
-![braft heartbeat](../images/braft heartbeat.PNG)
+![braft heartbeat](../images/braft_heartbeat.PNG)
 
 ### 5.4. Snapshot save流程
 
-![braft snapshot save](../images/braft snapshot save.PNG)
+![braft snapshot save](../images/braft_snapshot_save.PNG)
 
 ### 5.5 Install snapshot流程
 
 #### 5.5.1. Leader端
 
-![braft install snapshot leader](../images/braft install snapshot leader.PNG)
+![braft install snapshot leader](../images/braft_install_snapshot_leader.PNG)
 
 > 注意：Install snapshot这个rpc虽然也会因为term比较低而被拒绝，但是braft在install snapshot的流程中并未处理这个错误，而是将发现term低从而stepdown留给了heartbeat流程处理。
 
 #### 5.5.2. Follower端
 
-![braft install snapshot follower](../images/braft install snapshot follower.PNG)
+![braft install snapshot follower](../images/braft_install_snapshot_follower.PNG)
 
 > LogManager::set_snapshot以后的流程省略，请参考snapshot_save
 
 ### 5.6. Election流程
 
-![braft election](../images/braft election.PNG)
+![braft election](../images/braft_election.PNG)
 
 > 注意：braft的node作为leader启动之后，并没有发送no-op entry，而是使用一条conf entry代替。
 
@@ -261,24 +261,24 @@ Braft的启动流程除了初始化各种对象之外，还做了以下处理：
 
 #### 5.7.1. Leader端
 
-![braft leadership transfer](../images/braft leadership transfer.PNG)
+![braft leadership transfer](../images/braft_leadership_transfer.PNG)
 
 #### 5.7.2. Follower端
 
-![braft leadership transfer follower](../images/braft leadership transfer follower.PNG)
+![braft leadership transfer follower](../images/braft_leadership_transfer_follower.PNG)
 
 ### 5.8. Configuration change流程
 
 #### 5.8.1. AddPeer
 
-![braft add peer](../images/braft add peer.PNG)
+![braft add peer](../images/braft_add_peer.PNG)
 
 #### 5.8.2. RemovePeer
 
-![braft remove peer](../images/braft remove peer.PNG)
+![braft remove peer](../images/braft_remove_peer.PNG)
 
 > 注意：braft并没有让被remove走的node去自行stepdown或者shutdown。
 
 ### 5.9. 启动流程
 
-![braft init](../images/braft init.PNG)
+![braft init](../images/braft_init.PNG)
