@@ -40,7 +40,7 @@ Braft的类图如下：（忽略了很多小的数据结构）
 * **NodeImpl**：Braft的核心类，调度、参与几乎所有的核心逻辑。
 * **VoteTimer**：当一个Candidate发起vote时激活此timer，确保如果本次Vote无结果，Candidate将再次发起下一次vote。
 * **ElectTimer**：Follower激活此timer，当收到Leader的心跳或者raft日志时更新NodeImpl中的timestamp，ElectTimer定期检查是否超时，超时则发起Vote流程。
-* **StepdownTimer**：Leader激活此timer，定期检查Leader是否无法收到大多数副本的回复，如果是则执行Stepdown，让别的副本自行选主（也就是SDCP中的PrimaryLease，比较可惜的是Braft使用的超时时长为election_timeout）。
+* **StepdownTimer**：Leader激活此timer，定期检查Leader是否无法收到大多数副本的回复，如果是则执行Stepdown，让别的副本自行选主。
 * **SnapshotTimer**：每个Active的副本都激活此timer，用于定期做Snapshot。
 * **FSMCaller**：用来回调UserStateMachine的类，在回调之前还处理一些自有逻辑。
 * **Ballot**：投票，用来记录一次RaftLog的复制或者Vote的情况的类。
@@ -74,8 +74,6 @@ Braft支持在一台机器上启动多个raft node（多个node不同endpoint，
 ![braft node manager](../images/braft_node_manager.PNG)
 
 当RaftService收到RPC请求时，会根据请求中的GroupId和PeerId，将Request转发给指定的NodeImpl。
-
-> 个人觉得NodeManager的设计思路是正确的，SDCP需要加入这个设计，以方便以后在一台机器上启动多个SDCP Node。
 
 ### 4.2. ConfigurationManager与Snapshot
 
@@ -113,8 +111,6 @@ Leader在向LogManager写入raft log之前，会调用append_pending_task在Ball
 按照论文，MetaStorage中保存了node的vote_for和term信息，使用ProtoBuf序列化之后保存到指定的位置。当NodeImpl初始化时会读取这个文件并反序列化获取vote_for和term。vote_for和term只要有一项改动就立即写文件。
 
 ![braft meta](../images/braft_meta.PNG)
-
-> SDCP还需要在vote_for和term的基础之上加入last_applied_id。
 
 ### 4.4. RaftLog
 
